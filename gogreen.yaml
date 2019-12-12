@@ -1,0 +1,474 @@
+
+Description:  GoGreen cloud demo file
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet 1 in the first Availability Zone
+    Type: String
+    Default: 10.0.1.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.0.2.0/24
+
+  WebPrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for WebPrivateSubnet1 in the first Availability Zone
+    Type: String
+    Default: 10.0.3.0/24
+
+  WebPrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for WebPrivateSubnet2 in the second Availability Zone
+    Type: String
+    Default: 10.0.4.0/24
+
+  AppPrivateSubnet3CIDR:
+    Description: Please enter the IP range (CIDR notation) for  AppPrivateSubnet3 in the first Availability Zone
+    Type: String
+    Default: 10.0.5.0/24
+
+  AppPrivateSubnet4CIDR:
+    Description: Please enter the IP range (CIDR notation) for AppPrivateSubnet4 in the second Availability Zone
+    Type: String
+    Default: 10.0.6.0/24
+
+  DbPrivateSubnet5CIDR:
+    Description: Please enter the IP range (CIDR notation) for  DbPrivateSubnet5 in the first Availability Zone
+    Type: String
+    Default: 10.0.7.0/24
+
+  DbPrivateSubnet6CIDR:
+    Description: Please enter the IP range (CIDR notation) for DbPrivateSubnet6 in the second Availability Zone
+    Type: String
+    Default: 10.0.8.0/24
+  
+  DBPassword:
+    Type: String
+    Default: "Password123!"
+  DBUser:
+    Default:  "swag"
+    Type: String
+
+#webserver ec2 instance
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+    ConstraintDescription: must be a valid EC2 instance type.
+  KeyName:
+    Description: Name of an EC2 KeyPair to enable SSH access to the instance.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  SSHLocation:
+    Description: ' The IP address range that can be used to access the web server using SSH.'
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
+
+
+#Basic VPC/subnet/gateway set up/route table
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PublicSubnet1 (AZ1)
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} PublicSubnet2 (AZ2)
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref WebPrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} WebPrivateSubnet1 (AZ1)
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref WebPrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} WebPrivateSubnet2 (AZ2)
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref AppPrivateSubnet3CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} AppPrivateSubnet3 (AZ1)
+
+  PrivateSubnet4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref AppPrivateSubnet4CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} AppPrivateSubnet4 (AZ2)
+
+  PrivateSubnet5:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref DbPrivateSubnet5CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} DbPrivateSubnet5 (AZ1)
+
+  PrivateSubnet6:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref DbPrivateSubnet6CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} DbPrivateSubnet6 (AZ2)
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      SubnetId: !Ref PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+#Security Group stuff
+  DBSecurityGroup:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      DBSecurityGroupIngress:
+       -
+         EC2SecurityGroupName:
+           Ref: WebServerSecurityGroup
+      GroupDescription: Frontend Access
+
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP access via port 80 and SSH access
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+
+#DB stuff
+  MyDB: 
+    Properties:
+      MultiAZ: true
+      AllocatedStorage: "100"
+      DBInstanceClass: db.t3.small
+      Engine: MySQL
+      EngineVersion: "5.7.22"
+      Iops: "1000"
+      MasterUserPassword: 
+        Ref: DBPassword
+      MasterUsername: 
+        Ref: DBUser
+    Type: "AWS::RDS::DBInstance"
+
+
+#ec2 Resources
+  Ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-00eb20669e0990cb4 # Amazon Linux AMI
+      UserData:
+        'Fn::Base64': 
+          !Sub |
+            #!/bin/bash
+            yum -y update
+
+            # install apache
+            yum install httpd24 -y  
+            
+            # start server
+            service httpd start
+            chkconfig httpd on
+      SecurityGroups:
+        - !Ref WebServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Web Tier
+        - Key: Type
+          Value: Worker Instance
+
+  WebLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties: 
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template-web
+      LaunchTemplateData: 
+        TagSpecifications:
+        - ResourceType: instance
+          Tags:
+          - Key: Name
+            Value: Web autoscale instance
+        BlockDeviceMappings: 
+          - Ebs:
+              VolumeSize: 8
+            DeviceName: /dev/sdf
+        CreditSpecification: 
+          CpuCredits: Unlimited
+        ImageId: ami-00eb20669e0990cb4 # Amazon Linux AMI
+        InstanceType: t2.micro
+        KeyName: vockey
+        Monitoring: 
+          Enabled: true
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash -ex
+              yum -y install httpd php mysql php-mysql
+              chkconfig httpd on
+              service httpd start
+              if [ ! -f /var/www/html/lab-app.tgz ]; then
+              cd /var/www/html
+              wget https://aws-tc-largeobjects.s3-us-west-2.amazonaws.com/CUR-TF-200-ACACAD/studentdownload/lab-app.tgz
+              tar xvfz lab-app.tgz
+              chown apache:root /var/www/html/rds.conf.php
+              fi
+
+  WebASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: WebASG
+      MinSize: "1"
+      MaxSize: "6"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 300
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebLaunchTemplate
+        Version: !GetAtt WebLaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+
+
+  AppLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties: 
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template-app
+      LaunchTemplateData: 
+        TagSpecifications:
+        - ResourceType: instance
+          Tags:
+          - Key: Name
+            Value: App autoscale instance
+        BlockDeviceMappings: 
+          - Ebs:
+              VolumeSize: 8
+            DeviceName: /dev/sdf
+        CreditSpecification: 
+          CpuCredits: Unlimited
+        ImageId: ami-00eb20669e0990cb4 # Amazon Linux AMI
+        InstanceType: t2.micro
+        KeyName: vockey
+        Monitoring: 
+          Enabled: true
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash -ex
+              yum -y install httpd php mysql php-mysql
+              chkconfig httpd on
+              service httpd start
+              if [ ! -f /var/www/html/lab-app.tgz ]; then
+              cd /var/www/html
+              wget https://aws-tc-largeobjects.s3-us-west-2.amazonaws.com/CUR-TF-200-ACACAD/studentdownload/lab-app.tgz
+              tar xvfz lab-app.tgz
+              chown apache:root /var/www/html/rds.conf.php
+              fi
+
+  AppASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: AppASG
+      MinSize: "1"
+      MaxSize: "6"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 300
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AppLaunchTemplate
+        Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
+
+  PrivateSubnets:
+    Description: A list of the private subnets
+    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2, !Ref PrivateSubnet3, !Ref PrivateSubnet4, !Ref PrivateSubnet5, !Ref PrivateSubnet6, ]]
